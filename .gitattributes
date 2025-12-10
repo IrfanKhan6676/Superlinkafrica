@@ -1,2 +1,31 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Normalize text files to LF in repo; Git will convert to CRLF on checkout on Windows if configured
+* text=auto eol=lf
+
+# Explicitly specify common text types
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.mjs  text eol=lf
+*.cjs  text eol=lf
+*.json text eol=lf
+*.css  text eol=lf
+*.scss text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sql  text eol=lf
+*.sh   text eol=lf
+*.env  text eol=lf
+
+# Treat images and other binaries correctly
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.svg  text eol=lf
+*.ico  binary
+*.webp binary
+
+# Do not modify line endings for lockfiles
+package-lock.json -text

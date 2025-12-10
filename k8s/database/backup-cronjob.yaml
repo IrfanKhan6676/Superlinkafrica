@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: default
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: postgres-backup
+            image: postgres:15
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: superlink-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: superlink-secrets
+                  key: POSTGRES_HOST
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: superlink-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: superlink-secrets
+                  key: POSTGRES_DATABASE
+            command:
+            - /bin/bash
+            - -c
+            - |
+              BACKUP_FILE="superlink_backup_$(date +%Y%m%d_%H%M%S).sql"
+              
+              # Create full backup
+              pg_dump -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB \
+                --verbose --clean --no-owner --no-privileges \
+                --format=custom > /backups/$BACKUP_FILE
+              
+              # Compress backup
+              gzip /backups/$BACKUP_FILE
+              
+              # Upload to cloud storage (implement based on your provider)
+              # aws s3 cp /backups/$BACKUP_FILE.gz s3://superlink-backups/
+              
+              # Keep only last 30 days of backups locally
+              find /backups -name "*.gz" -mtime +30 -delete
+              
+              echo "Backup completed: $BACKUP_FILE.gz"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backups
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-pvc
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
